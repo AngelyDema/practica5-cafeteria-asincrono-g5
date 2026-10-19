@@ -204,6 +204,28 @@ Frontend:
 ## Evidencias por fase
 
 <!-- Una subsección por cada fase de la guía, con capturas o salidas de comandos y unas líneas de lo que observaste. -->
+### Evidencia 0
+![imagen evidencia 0](image.png)
+
+```
+angelysofiapg@cloudshell:~/practica5-cafeteria-asincrono-g5 (nube-practica-1-507220)$ gcloud config list
+[accessibility]
+screen_reader = True
+[component_manager]
+disable_update_check = True
+[compute]
+gce_metadata_read_timeout_sec = 30
+[core]
+account = angelysofiapg@ufps.edu.co
+disable_usage_reporting = False
+project = nube-practica-1-507220
+universe_domain = googleapis.com
+[metrics]
+environment = devshell
+
+Your active configuration is: [cloudshell-5044]
+[environment: untagged] Read more to tag: g.co/cloud/project-env-tag.
+```
 
 ## Decisiones del reto
 
