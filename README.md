@@ -226,6 +226,71 @@ environment = devshell
 Your active configuration is: [cloudshell-5044]
 [environment: untagged] Read more to tag: g.co/cloud/project-env-tag.
 ```
+### Evidencia 1:
+Imagenes creadas:
+```
+angelysofiapg@cloudshell:~/practica5-cafeteria-asincrono-g5/infra (nube-practica-1-507220)$ gcloud artifacts docker images list us-central1-docker.pkg.dev/nube-practica-1-507220/grupo5p5-imagenes
+Listing items under project nube-practica-1-507220, location us-central1, repository grupo5p5-imagenes.
+
+IMAGE: us-central1-docker.pkg.dev/nube-practica-1-507220/grupo5p5-imagenes/backend
+DIGEST: sha256:057c1aa4038d432f6dfd0108d2b9dc991b39607cdd2a2326275b154dd8f61b81
+CREATE_TIME: 2026-11-07T22:55:22
+UPDATE_TIME: 2026-11-07T22:55:22
+SIZE: 70507436
+
+IMAGE: us-central1-docker.pkg.dev/nube-practica-1-507220/grupo5p5-imagenes/backend
+DIGEST: sha256:47822e2c301ebc0ad695be71852ecb99db0cca39f758ac663947e19b5459db2c
+CREATE_TIME: 2026-11-07T22:55:22
+UPDATE_TIME: 2026-11-07T22:55:22
+SIZE: 1664
+
+IMAGE: us-central1-docker.pkg.dev/nube-practica-1-507220/grupo5p5-imagenes/backend
+DIGEST: sha256:da45702d4eeda4574f5cec608ec11efb68618d4743c4dc44fa79d23a8917d84e
+CREATE_TIME: 2026-11-07T22:55:22
+UPDATE_TIME: 2026-11-07T22:55:22
+SIZE: None
+
+IMAGE: us-central1-docker.pkg.dev/nube-practica-1-507220/grupo5p5-imagenes/cocina
+DIGEST: sha256:5a0afb2188bd8b36ab81e4b24cbd6583a84ed643a7bbdef12b14904a93e9b9c7
+CREATE_TIME: 2026-11-07T22:51:48
+UPDATE_TIME: 2026-11-07T22:51:48
+SIZE: 1658
+
+IMAGE: us-central1-docker.pkg.dev/nube-practica-1-507220/grupo5p5-imagenes/cocina
+DIGEST: sha256:5c17d8df4145d67f46cd4f3fbc7d6f1b350c1cd0c3f732f9c1c4b7a2f737b3a3
+CREATE_TIME: 2026-11-07T22:51:48
+UPDATE_TIME: 2026-11-07T22:51:48
+SIZE: 69118238
+
+IMAGE: us-central1-docker.pkg.dev/nube-practica-1-507220/grupo5p5-imagenes/cocina
+DIGEST: sha256:b81998cbf4728d22df7cae4715a04cc23b3acfb409d995cfa59ed7c19a86c0b8
+CREATE_TIME: 2026-11-07T22:51:48
+UPDATE_TIME: 2026-11-07T22:51:48
+SIZE: None
+
+IMAGE: us-central1-docker.pkg.dev/nube-practica-1-507220/grupo5p5-imagenes/frontend
+DIGEST: sha256:406d88af4c26957484a0a1d038cd71475faafbae351d18dfb9cf641857e3f73c
+CREATE_TIME: 2026-11-07T23:03:09
+UPDATE_TIME: 2026-11-07T23:03:09
+SIZE: 44314420
+
+IMAGE: us-central1-docker.pkg.dev/nube-practica-1-507220/grupo5p5-imagenes/frontend
+DIGEST: sha256:706f1a821f4ad8ac0dfed8c2d4390678d1d8df08f7d0e7bddbf9bf0989cff33f
+CREATE_TIME: 2026-11-07T23:03:09
+UPDATE_TIME: 2026-11-07T23:03:09
+SIZE: 1669
+
+IMAGE: us-central1-docker.pkg.dev/nube-practica-1-507220/grupo5p5-imagenes/frontend
+DIGEST: sha256:dc668395cfccc92cd9a22199f5c3107f3132489e9798646c03c6858837886a2d
+CREATE_TIME: 2026-11-07T23:03:10
+UPDATE_TIME: 2026-11-07T23:03:10
+SIZE: None
+```
+Imagen del frontend en celular:
+![alt text](image-1.png)
+
+Advertencia del backend: 
+![alt text](image-2.png)
 
 ## Decisiones del reto
 
