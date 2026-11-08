@@ -315,6 +315,24 @@ Subscripción:
 Salida del curl con el 403: 
 ![alt text](image-6.png)
 
+### Evidencia 4:
+
+Salida de la rafaga:
+![alt text](image-9.png)
+
+Varias casillas: 
+![alt text](image-10.png)
+
+Reponer inventario:
+![alt text](image-11.png)
+
+Cantidad de instancias (gráfica):
+
+![alt text](image-12.png)
+
+Mensajes:
+![alt text](image-13.png)
+
 ## Decisiones del reto
 
 <!-- Qué cambiaste, por qué y cómo comprobaste que funciona. -->
