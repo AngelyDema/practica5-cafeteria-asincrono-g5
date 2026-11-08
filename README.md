@@ -306,6 +306,15 @@ Tema:
 
 ### Evidencia 3: 
 
+Pedido procesado en el teléfono: 
+![alt text](image-8.png)
+
+Subscripción: 
+![alt text](image-7.png)
+
+Salida del curl con el 403: 
+![alt text](image-6.png)
+
 ## Decisiones del reto
 
 <!-- Qué cambiaste, por qué y cómo comprobaste que funciona. -->
