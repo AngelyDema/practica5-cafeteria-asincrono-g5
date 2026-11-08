@@ -292,6 +292,20 @@ Imagen del frontend en celular:
 Advertencia del backend: 
 ![alt text](image-2.png)
 
+### Evidencia 2: 
+
+Pedido publicado: 
+![alt text](image-3.png)
+
+Pedido en recibido: 
+![alt text](image-4.png)
+
+Tema: 
+![alt text](image-5.png)
+
+
+### Evidencia 3: 
+
 ## Decisiones del reto
 
 <!-- Qué cambiaste, por qué y cómo comprobaste que funciona. -->
