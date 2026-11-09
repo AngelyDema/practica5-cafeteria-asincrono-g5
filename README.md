@@ -335,6 +335,14 @@ Mensajes:
 
 ### Evidencia 5: 
 
+Inventario en la pantalla de la cafetería durante la prueba con `PROBABILIDAD_FALLO` en `0.5`:
+
+<img src="docs/capturas/evidencia5-inventario.png" alt="Inventario en la pantalla de la cafetería" width="320">
+
+Registro de la cocina con la falla simulada (el trabajo quedó hecho pero no se confirmó, así que Pub/Sub vuelve a entregar el pedido):
+
+<img src="docs/capturas/evidencia5-logs-falla.png" alt="Logs de la cocina con la falla simulada" width="320">
+
 ## Decisiones del reto
 
 <!-- Qué cambiaste, por qué y cómo comprobaste que funciona. -->
