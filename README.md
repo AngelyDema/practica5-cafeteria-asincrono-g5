@@ -191,19 +191,55 @@ El plato misterioso falla siempre, y sin un tema de mensajes muertos Pub/Sub lo 
 
 | Nombre | Código | Usuario de GitHub |
 |---|---|---|
-| | | |
+| Angely Sofia Pino | 1152315 | [AngelyDema](https://github.com/AngelyDema) |
+| Jhan Ávila Torres | 1152490 | [JhanFranco1152490](https://github.com/JhanFranco1152490) |
 
 ## URL de la cafetería
 
-Frontend:
+Frontend: https://grupo5p5-frontend-ank53khbyq-uc.a.run.app
 
 ## Diagrama propio
 
-<!-- Tu diagrama en Mermaid de lo que desplegaste, con los nombres reales de tus recursos. -->
+```mermaid
+flowchart LR
+    telefono(["Teléfono"])
+
+    subgraph proyecto["Proyecto de Google Cloud, región us-central1"]
+        frontend["grupo5p5-frontend<br/>Cloud Run, público"]
+        backend["grupo5p5-backend<br/>Cloud Run, público"]
+        firestore[("Firestore<br/>grupo5p5-cafeteria")]
+        registro["Artifact Registry<br/>grupo5p5-imagenes"]
+        tema{{"Tema<br/>grupo5p5-pedidos"}}
+        suscripcion["Suscripción push<br/>grupo5p5-cocina<br/>token OIDC, ack 60 s, 5 intentos"]
+        cocina["grupo5p5-cocina<br/>Cloud Run, privado"]
+        invocador["Cuenta de servicio<br/>grupo5p5-invocador"]
+        agente["Agente de servicio de Pub/Sub<br/>service-NÚMERO@gcp-sa-pubsub.<br/>iam.gserviceaccount.com"]
+        muertos{{"Tema de mensajes muertos<br/>grupo5p5-pedidos-muertos"}}
+        lectura["Suscripción pull<br/>grupo5p5-muertos"]
+    end
+
+    telefono -->|"carga la página"| frontend
+    telefono -->|"GET /menu, POST /pedidos"| backend
+    backend -->|"guarda el pedido"| firestore
+    backend -->|"publica el id"| tema
+    tema --> suscripcion
+    suscripcion -->|"POST / con token"| cocina
+    suscripcion -->|"token a nombre de"| invocador
+    cocina -->|"estado e inventario en una transacción"| firestore
+    suscripcion -->|"tras 5 intentos fallidos"| muertos
+    muertos --> lectura
+
+    backend -.->|"pubsub.publisher"| tema
+    agente -.->|"iam.serviceAccountTokenCreator"| invocador
+    invocador -.->|"run.invoker"| cocina
+    agente -.->|"pubsub.publisher"| muertos
+    agente -.->|"pubsub.subscriber"| suscripcion
+```
+
+Las flechas punteadas son los permisos de IAM, con el rol sin el prefijo `roles/` y apuntando al recurso sobre el que se da. Las fases 2 y 3 dan `pubsub.publisher` al backend sobre el tema, `iam.serviceAccountTokenCreator` al agente de Pub/Sub sobre la cuenta invocadora y `run.invoker` a esa cuenta sobre la cocina. El reto agrega dos permisos al agente de Pub/Sub: `pubsub.publisher` sobre el tema de muertos y `pubsub.subscriber` sobre la suscripción de la cocina. Además, las cuentas del backend y de la cocina tienen `roles/datastore.user` sobre el proyecto para usar Firestore.
 
 ## Evidencias por fase
 
-<!-- Una subsección por cada fase de la guía, con capturas o salidas de comandos y unas líneas de lo que observaste. -->
 ### Evidencia 0
 ![imagen evidencia 0](image.png)
 
@@ -343,10 +379,77 @@ Registro de la cocina con la falla simulada (el trabajo quedó hecho pero no se 
 
 <img src="docs/capturas/evidencia5-logs-falla.png" alt="Logs de la cocina con la falla simulada" width="320">
 
+### Evidencia 6:
+
+**Inventario cuadrando con la falla inyectada.** Con `PROBABILIDAD_FALLO` en `0.5`, se repuso el inventario (20 tintos) y se hicieron cuatro pedidos de un tinto. Se hizo dos veces y las dos veces quedaron 16:
+
+```
+$ curl -s $B/menu | python3 -c "... if p['producto']=='tinto'"
+[('tinto', 16)]
+```
+
+Historia de uno de los pedidos en los registros de la cocina. Llegó dos veces y se descontó una sola:
+
+```
+04:48:23.845  INFO:cocina:Pedido 8xFeFrcD2IHKXyOLOtIO, intento de entrega 1
+04:48:30.382  INFO:cocina:Pedido 8xFeFrcD2IHKXyOLOtIO listo
+04:48:30.382  WARNING:cocina:Falla simulada en el pedido 8xFeFrcD2IHKXyOLOtIO: el trabajo quedó hecho pero no se confirma
+04:48:43.045  INFO:cocina:Pedido 8xFeFrcD2IHKXyOLOtIO, intento de entrega 2
+04:48:43.148  INFO:cocina:Pedido 8xFeFrcD2IHKXyOLOtIO ya estaba listo; entrega repetida, no se descuenta otra vez
+```
+
+Con la cocina de la plantilla, el mismo pedido habría descontado el tinto en las dos entregas.
+
+**Mensaje del plato misterioso leído desde el tema de muertos.** La cocina falló 5 veces seguidas con `La cocina no tiene receta para el plato misterioso` (los intentos llevan número porque la suscripción tiene política de mensajes muertos: `deliveryAttempt` ya no dice "desconocido"). Al quinto, Pub/Sub lo pasó al tema `grupo5p5-pedidos-muertos`, y se leyó con `gcloud pubsub subscriptions pull grupo5p5-muertos --auto-ack --limit=5`:
+
+```
+DATA: SD36OaLQXsVSoCzud1YG
+MESSAGE_ID: 23319591402322823
+ATTRIBUTES: CloudPubSubDeadLetterSourceDeliveryCount=5
+CloudPubSubDeadLetterSourceSubscription=grupo5p5-cocina
+CloudPubSubDeadLetterSourceSubscriptionProject=cafeteria-g5-jhan-31973
+CloudPubSubDeadLetterSourceTopicPublishTime=2026-11-09T04:49:28.456+00:00
+ACK_STATUS: SUCCESS
+```
+
+Los intentos de ese pedido, con la espera creciendo entre uno y otro:
+
+```
+04:49:28  intento de entrega 1
+04:49:41  intento de entrega 2
+04:49:56  intento de entrega 3
+04:50:18  intento de entrega 4
+04:50:45  intento de entrega 5
+```
+
+**Mediciones.** Operaciones de Firestore de un pedido de un producto que llega bien a la primera, contadas a partir del código (no medidas en la consola):
+
+| Paso | Lecturas | Escrituras |
+|---|---|---|
+| Backend: número consecutivo y guardar el pedido | 0 | 2 |
+| Cocina: pasar a `preparando` | 1 | 1 |
+| Cocina: revisar estado y existencias, descontar y dejar `listo` | 2 | 2 |
+| **Total (pedido `listo`)** | **3** | **5** |
+
+Un pedido `rechazado` hace 3 lecturas y 4 escrituras. Una entrega repetida de un pedido ya terminado hace 1 lectura y ninguna escritura. Las lecturas de la página (`GET /pedidos`) no están contadas.
+
+**Reproducción desde cero.** Se desplegó todo en un proyecto nuevo (`cafeteria-g5-jhan-31973`) con el repo tal como está: `terraform apply -target` del registro, tres imágenes con `docker build` y `docker push`, y un solo `terraform apply` que creó 21 recursos, sin pasos en la consola. La cocina responde `403` sin token y un pedido hecho desde el teléfono llegó a `listo`:
+
+<img src="docs/capturas/evidencia6-pedido-listo.png" alt="Pedido 2 en listo en el proyecto nuevo" width="320">
 ## Decisiones del reto
 
-<!-- Qué cambiaste, por qué y cómo comprobaste que funciona. -->
+**Cómo sabe la cocina que un pedido ya se preparó.** Consulta el campo `estado` del pedido en Firestore: si es `listo` o `rechazado`, la entrega es repetida y responde `204` sin tocar nada. Revisar el estado, revisar las existencias y descontar van en una sola transacción de Firestore (`terminar` en `cocina/main.py`), y la marca de `listo` se escribe dentro de esa misma transacción, así que no hay un momento en que el inventario ya esté descontado y el pedido todavía no lo diga. Si dos entregas del mismo pedido llegan a la vez a dos instancias, Firestore detecta que ambas leyeron el mismo documento: la primera en confirmar gana y la otra repite la transacción con los datos nuevos, ve `listo` y devuelve `repetido`. Ese reintento de transacciones es el mismo que arregla el inventario negativo de la fase 4, y se permiten hasta 10 intentos porque en una ráfaga muchos pedidos pelean por el documento del mismo producto. Además, un primer paso (`empezar`) marca `preparando` también en una transacción y solo si el pedido no está terminado.
+
+**Cuántos intentos antes de rendirse.** 5, que es el mínimo que admite Pub/Sub, con espera creciente de 10 a 60 segundos entre intentos. En los registros las esperas fueron de unos 15, 17, 19 y 26 segundos, así que un pedido se rinde a los 80 segundos de su primera entrega. Un problema pasajero (por ejemplo un permiso que tarda en propagarse o un corte corto de Firestore) se resuelve en alguno de esos reintentos y el cliente solo ve que el pedido tardó un poco más. Una falla que dure más que eso manda el mensaje al tema de muertos, donde se puede leer y volver a publicar a mano, en vez de reintentarse durante 7 días. El costo es que un pedido que ya terminó pero falló 5 veces seguidas en confirmarse también acabaría ahí, aunque su inventario esté bien.
+
+**Los permisos de los mensajes muertos.** `roles/pubsub.publisher` sobre el tema de muertos lo necesita el agente de Pub/Sub porque es él, y no la cocina, quien reenvía el mensaje a ese tema. `roles/pubsub.subscriber` sobre la suscripción de la cocina lo necesita para confirmar (`ack`) el mensaje original después de reenviarlo; sin ese permiso el mensaje seguiría vivo en la suscripción de la cocina y se reintentaría de nuevo. Si faltara la suscripción en el tema de muertos, el mensaje se publicaría en un tema que no guarda nada y se perdería para siempre: justo el caso de la fase 2, donde el tema descartó el pedido por no tener suscripciones. Por eso existe `grupo5p5-muertos`.
+
+**Cómo medimos.** Lo que se midió es el inventario y el número de entregas por pedido, con la propia API y los registros. Después de reponer el inventario con `curl -s -X POST $B/inventario/reiniciar` y hacer cuatro pedidos de un tinto, se leyó el tinto con `curl -s $B/menu`; la prueba se repitió dos veces y las dos dio 16. Las entregas de cada pedido se contaron con `gcloud logging read` sobre el servicio `grupo5p5-cocina`, filtrando por el id del pedido y ordenando por hora. Las lecturas y escrituras de Firestore se contaron en el código y no en la consola. No se midió el tiempo de una ráfaga con distintos máximos de instancias; por diseño lo limitan los 6 segundos de preparación y las 8 peticiones simultáneas por instancia, que con el máximo de 3 instancias dejan 24 pedidos preparándose a la vez.
 
 ## Preguntas
 
-<!-- Las respuestas a las preguntas de la guía. -->
+**¿Por qué el pedido de la fase 2 nunca se preparó, aunque después crearon la suscripción?** Porque un tema de Pub/Sub no guarda mensajes: cuando alguien publica, el tema entrega una copia a cada suscripción que existe en ese momento, y si no hay ninguna, el mensaje se descarta. Cuando el backend publicó el id de ese pedido, el tema no tenía suscripciones, así que la copia se perdió. La suscripción que se creó después solo recibe los mensajes publicados a partir de su creación; no hay nada que le pida al backend volver a publicar. El pedido quedó en Firestore con estado `recibido` y nadie volvió a avisarle a la cocina.
+
+**Si quitan el `run.invoker` de la cuenta invocadora, ¿qué deja de funcionar, cuánto tarda en notarse, qué ve el cliente en el teléfono y dónde encontrarían el error?** Deja de funcionar la entrega de Pub/Sub a la cocina: la suscripción sigue enviando el `POST` con el token de la cuenta invocadora, pero Cloud Run lo rechaza con `403` antes de que llegue al código de la cocina. El backend sigue publicando y respondiendo `201`, así que el pedido se guarda bien. Se nota desde la primera entrega después de que el cambio de IAM se propaga, que suele tardar un par de minutos; antes de eso las instancias pueden seguir aceptando entregas. El cliente ve el pedido atascado en `recibido` para siempre, sin ningún error en pantalla. El error no aparece en los registros de texto de la cocina, porque la petición nunca llega a ejecutarse; hay que buscarlo en el registro de solicitudes de Cloud Run (`run.googleapis.com/requests`), donde sale el `403`, o en las métricas de la suscripción en Pub/Sub, donde las entregas push fallan. Con la política de mensajes muertos, además, tras 5 entregas rechazadas cada pedido se desvía al tema de muertos, y ahí hay que republicarlo una vez arreglado el permiso. Esta respuesta es razonada a partir de cómo funciona el sistema y del `403` que sale al llamar a la cocina sin token (Evidencia 3); no se probó quitando el permiso.
+
+**Con `PROBABILIDAD_FALLO` en `0.5`, ¿cuántas veces le llega en promedio un mismo pedido a la cocina, con la cocina de la plantilla y con la idempotente?** Con la cocina de la plantilla, cada entrega repite todo el trabajo y vuelve a tirar la moneda: el número de entregas es geométrico, con media 1 / (1 − 0,5) = **2**. Con la idempotente, solo la primera entrega puede fallar después de hacer el trabajo: en la segunda, el pedido ya está en `listo`, la cocina responde `204` en el chequeo de estado y nunca llega a la parte que simula la falla. Así que el pedido llega 1 vez y, con probabilidad 0,5, una segunda: media 1 + 0,5 = **1,5**. Los dos números difieren porque la idempotencia no evita las entregas repetidas (Pub/Sub las sigue mandando mientras no reciba un `2xx`), sino que corta la cadena de fallas y hace que repetirse no cueste nada. Lo medido no alcanza para comparar con estos promedios: seguimos con detalle un pedido que falló (`8xFeFrcD2IHKXyOLOtIO`), que llegó 2 veces y se descontó 1, pero no se contaron las entregas de un número grande de pedidos.
