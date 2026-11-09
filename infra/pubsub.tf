@@ -95,6 +95,14 @@ resource "google_pubsub_subscription" "cocina" {
     maximum_backoff = "60s"
   }
 
+  # Después de 5 entregas fallidas (el mínimo que admite Pub/Sub) el mensaje
+  # pasa al tema de muertos. Con esta política Pub/Sub también informa
+  # deliveryAttempt en cada entrega.
+  dead_letter_policy {
+    dead_letter_topic     = google_pubsub_topic.muertos.id
+    max_delivery_attempts = 5
+  }
+
   push_config {
     push_endpoint = google_cloud_run_v2_service.cocina.uri
 
@@ -107,5 +115,39 @@ resource "google_pubsub_subscription" "cocina" {
   depends_on = [
     google_cloud_run_v2_service_iam_member.invocador_cocina,
     google_service_account_iam_member.pubsub_firma_tokens,
+    google_pubsub_topic_iam_member.agente_publica_muertos,
   ]
+}
+
+# Tema de mensajes muertos: aquí llegan los pedidos que la cocina no logra preparar.
+resource "google_pubsub_topic" "muertos" {
+  name = "${var.prefijo}-pedidos-muertos"
+
+  depends_on = [google_project_service.apis]
+}
+
+# Sin una suscripción en el tema de muertos, los mensajes que lleguen ahí se pierden.
+resource "google_pubsub_subscription" "muertos" {
+  name  = "${var.prefijo}-muertos"
+  topic = google_pubsub_topic.muertos.id
+
+  # Pull: se leen a mano con "gcloud pubsub subscriptions pull".
+  ack_deadline_seconds = 60
+}
+
+# El agente de Pub/Sub reenvía el mensaje al tema de muertos...
+resource "google_pubsub_topic_iam_member" "agente_publica_muertos" {
+  topic  = google_pubsub_topic.muertos.name
+  role   = "roles/pubsub.publisher"
+  member = local.agente_pubsub
+
+  # El agente de Pub/Sub aparece cuando se usa la API por primera vez.
+  depends_on = [google_pubsub_topic.pedidos]
+}
+
+# ...y confirma (ack) el original en la suscripción de la cocina para que deje de reintentarse.
+resource "google_pubsub_subscription_iam_member" "agente_confirma_cocina" {
+  subscription = google_pubsub_subscription.cocina.name
+  role         = "roles/pubsub.subscriber"
+  member       = local.agente_pubsub
 }
